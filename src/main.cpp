@@ -16,9 +16,9 @@
 #endif
 
 //pins:
-const int HX711_dout_1 = D4; //mcu > HX711 no 1 dout pin
-const int HX711_sck_1 = D5; //mcu > HX711 no 1 sck pin
-const int HX711_dout_2 = D3; //mcu > HX711 no 2 dout pin
+const int HX711_dout_1 = D3; //mcu > HX711 no 1 dout pin
+const int HX711_sck_1 = D4; //mcu > HX711 no 1 sck pin
+const int HX711_dout_2 = D5; //mcu > HX711 no 2 dout pin
 const int HX711_sck_2 = D6; //mcu > HX711 no 2 sck pin
 
 //HX711 constructor (dout pin, sck pin)
