@@ -11,9 +11,7 @@
 // Settling time (number of samples) and data filtering can be adjusted in the config.h file
 
 #include <HX711_ADC.h>
-#if defined(ESP8266)|| defined(ESP32) || defined(AVR)
 #include <EEPROM.h>
-#endif
 
 //pins:
 const int HX711_dout_1 = D3; //mcu > HX711 no 1 dout pin
@@ -39,16 +37,12 @@ void setup() {
 
   //calibrationValue_1 = 696.0; // uncomment this if you want to set this value in the sketch
   //calibrationValue_2 = 733.0; // uncomment this if you want to set this value in the sketch
-#if defined(ESP8266) || defined(ESP32)
   EEPROM.begin(512); // uncomment this if you use ESP8266 and want to fetch the value from eeprom
-#endif
   EEPROM.get(calVal_eepromAdress_1, calibrationValue_1); // uncomment this if you want to fetch the value from eeprom
   EEPROM.get(calVal_eepromAdress_2, calibrationValue_2); // uncomment this if you want to fetch the value from eeprom
 
   LoadCell_1.begin();
   LoadCell_2.begin();
-  //LoadCell_1.setReverseOutput();
-  //LoadCell_2.setReverseOutput();
   unsigned long stabilizingtime = 2000; // tare preciscion can be improved by adding a few seconds of stabilizing time
   boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
   byte loadcell_1_rdy = 0;
@@ -70,7 +64,7 @@ void setup() {
 
 void loop() {
   static boolean newDataReady = 0;
-  const int serialPrintInterval = 0; //increase value to slow down serial print activity
+  const int serialPrintInterval = 10; //increase value to slow down serial print activity
 
   // check for new data/start next conversion:
   if (LoadCell_1.update()) newDataReady = true;
@@ -99,6 +93,27 @@ void loop() {
       LoadCell_1.tareNoDelay();
       LoadCell_2.tareNoDelay();
     }
+    else if (inByte == 'c') {
+      Serial.println("Start calibration? (y/n)");
+      boolean resume = false;
+      while (resume == false)
+      {
+        if (Serial.available() > 0)
+        {
+          inByte = Serial.read();
+          if (inByte = 'y')
+          {
+            //calibrate();
+            resume = true;
+          }
+          else if (inByte == 'n')
+          {
+            Serial.println("calibration aborted");
+            resume = true;
+          }
+        }
+      }
+    }
   }
 
   //check if last tare operation is complete
@@ -108,5 +123,17 @@ void loop() {
   if (LoadCell_2.getTareStatus() == true) {
     Serial.println("Tare load cell 2 complete");
   }
+
+}
+
+void calibrate() {
+
+  /* loadcell.tare
+  tarestatus = true
+  place known mass
+  send known mass
+  refreshDataSet
+  loadcell.getNewCalibration
+  write to eeprom? */
 
 }
