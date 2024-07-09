@@ -1,17 +1,8 @@
 #include <Arduino.h>
-
-//-------------------------------------------------------------------------------------
-// HX711_ADC.h
-// Arduino master library for HX711 24-Bit Analog-to-Digital Converter for Weigh Scales
-// Olav Kallhovd sept2017
-// Tested with      : HX711 asian module on channel A and YZC-133 3kg load cell
-// Tested with MCU  : Arduino Nano
-//-------------------------------------------------------------------------------------
-// This is an example sketch on how to use this library for two ore more HX711 modules
-// Settling time (number of samples) and data filtering can be adjusted in the config.h file
-
 #include <HX711_ADC.h>
 #include <EEPROM.h>
+
+void calibrate();
 
 //pins:
 const int HX711_dout_1 = D3; //mcu > HX711 no 1 dout pin
@@ -35,8 +26,6 @@ void setup() {
   float calibrationValue_1; // calibration value load cell 1
   float calibrationValue_2; // calibration value load cell 2
 
-  //calibrationValue_1 = 696.0; // uncomment this if you want to set this value in the sketch
-  //calibrationValue_2 = 733.0; // uncomment this if you want to set this value in the sketch
   EEPROM.begin(512); // uncomment this if you use ESP8266 and want to fetch the value from eeprom
   EEPROM.get(calVal_eepromAdress_1, calibrationValue_1); // uncomment this if you want to fetch the value from eeprom
   EEPROM.get(calVal_eepromAdress_2, calibrationValue_2); // uncomment this if you want to fetch the value from eeprom
@@ -101,9 +90,9 @@ void loop() {
         if (Serial.available() > 0)
         {
           inByte = Serial.read();
-          if (inByte = 'y')
+          if (inByte == 'y')
           {
-            //calibrate();
+            calibrate();
             resume = true;
           }
           else if (inByte == 'n')
@@ -128,12 +117,124 @@ void loop() {
 
 void calibrate() {
 
-  /* loadcell.tare
-  tarestatus = true
-  place known mass
-  send known mass
-  refreshDataSet
-  loadcell.getNewCalibration
-  write to eeprom? */
+  Serial.println("***");
+  Serial.println("Start calibration:");
+  Serial.println("Place the load cell an a level stable surface.");
+  Serial.println("Remove any load applied to the load cell.");
+  Serial.println("Send 't' from serial monitor to set the tare offset.");
 
+  boolean resume = false;
+  int tareStatus = 0;
+  while (resume == false) {
+    LoadCell_1.update();
+    LoadCell_2.update();
+    if (Serial.available() > 0) {
+      char inByte = Serial.read();
+      if (inByte == 't') {
+        LoadCell_1.tareNoDelay();
+        LoadCell_2.tareNoDelay();
+      }
+    }
+    if (LoadCell_1.getTareStatus() == true)
+    {
+      tareStatus++;
+      Serial.println("Tare Loadcell 1 complete");
+    }
+    if (LoadCell_2.getTareStatus() == true)
+    {
+        tareStatus++;
+        Serial.println("Tare Loadcell 2 complete");
+    }
+    if (tareStatus >= 2)
+    {
+      Serial.println("Tare complete");
+      resume = true;
+    }
+  }
+
+  Serial.println("Now, place your known mass on the right loadcell.");
+  Serial.println("Then send the weight of this mass (i.e. 100.0) from serial monitor.");
+  float known_mass = 0;
+  resume = false;
+  while (resume == false)
+  {
+    LoadCell_1.update();
+    if (Serial.available() > 0)
+    {
+      known_mass = Serial.parseFloat();
+      if (known_mass != 0)
+      {
+        Serial.print("Known mass is: ");
+        Serial.println(known_mass);
+        resume = true;
+      }
+    }
+  }
+  LoadCell_1.refreshDataSet();
+  float newCalibrationValue_1 = LoadCell_1.getNewCalibration(known_mass);
+  Serial.print("New calibration value has been set to: ");
+  Serial.println(newCalibrationValue_1);
+
+  Serial.println("\nNow, place your known mass on the left loadcell.");
+  Serial.println("Then send the weight of this mass (i.e. 100.0) from serial monitor.");
+  known_mass = 0;
+  resume = false;
+  while (resume == false)
+  {
+    LoadCell_2.update();
+    if (Serial.available() > 0)
+    {
+      known_mass = Serial.parseFloat();
+      if (known_mass != 0)
+      {
+        Serial.print("Known mass is: ");
+        Serial.println(known_mass);
+        resume = true;
+      }
+    }
+  }
+  LoadCell_2.refreshDataSet();
+  float newCalibrationValue_2 = LoadCell_2.getNewCalibration(known_mass);
+
+  Serial.print("New calibration value has been set to: ");
+  Serial.println(newCalibrationValue_2);
+
+  Serial.println("Save this values to EEPROM? (y/n)");
+  resume = false;
+  while (resume == false)
+  {
+    if (Serial.available() > 0)
+    {
+      char inByte = Serial.read();
+      if (inByte == 'y')
+      {
+        EEPROM.begin(512);
+        EEPROM.put(calVal_eepromAdress_1, newCalibrationValue_1);
+        EEPROM.put(newCalibrationValue_2, newCalibrationValue_2);
+        EEPROM.commit();
+
+        EEPROM.get(calVal_eepromAdress_1, newCalibrationValue_1);
+        Serial.print("Value ");
+        Serial.print(newCalibrationValue_1);
+        Serial.print(" saved to EEPROM address: ");
+        Serial.println(calVal_eepromAdress_1);
+        EEPROM.get(calVal_eepromAdress_2, newCalibrationValue_2);
+        Serial.print("Value ");
+        Serial.print(newCalibrationValue_2);
+        Serial.print(" saved to EEPROM address: ");
+        Serial.println(calVal_eepromAdress_2);
+        resume = true;
+      }
+      else if (inByte == 'n')
+      {
+        Serial.println("Value not saved to EEPROm");
+        resume =  true;
+      }
+    }
+  }
+
+  Serial.println("End calibration");
+  Serial.println("Resuming....");
+  Serial.println("***");
+  delay(3000);
 }
