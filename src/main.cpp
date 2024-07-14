@@ -2,6 +2,8 @@
 #include <HX711_ADC.h>
 #include <EEPROM.h>
 
+#include "data.h"
+
 void calibrate();
 
 //pins:
