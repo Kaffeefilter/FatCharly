@@ -1,10 +1,15 @@
 #include <Arduino.h>
 #include <HX711_ADC.h>
 #include <EEPROM.h>
+#include <ESP8266WiFiMulti.h>
 
 #include "data.h"
 
 void calibrate();
+int maintainWifi();
+
+ESP8266WiFiMulti wifiMulti;
+boolean wifiConnected = false;
 
 //pins:
 const int HX711_dout_1 = D3; //mcu > HX711 no 1 dout pin
@@ -31,6 +36,10 @@ void setup() {
   EEPROM.begin(512); // uncomment this if you use ESP8266 and want to fetch the value from eeprom
   EEPROM.get(calVal_eepromAdress_1, calibrationValue_1); // uncomment this if you want to fetch the value from eeprom
   EEPROM.get(calVal_eepromAdress_2, calibrationValue_2); // uncomment this if you want to fetch the value from eeprom
+  Serial.print("calibration value 1");
+  Serial.println(calibrationValue_1);
+  Serial.print("calibration value 2");
+  Serial.println(calibrationValue_2);
 
   LoadCell_1.begin();
   LoadCell_2.begin();
@@ -50,12 +59,35 @@ void setup() {
   }
   LoadCell_1.setCalFactor(calibrationValue_1); // user set calibration value (float)
   LoadCell_2.setCalFactor(calibrationValue_2); // user set calibration value (float)
+
+  WiFi.mode(WIFI_STA);
+  wifiMulti.addAP(WLAN_NAME_1, WLAN_PW_1);
+  wifiMulti.addAP(WLAN_NAME_2, WLAN_PW_2);
+
+  while (maintainWifi() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  
   Serial.println("Startup is complete");
+  Serial.println("send w to continue...");
+  boolean resume = false;
+  while (resume == false)
+  {
+    if (Serial.available() > 0) {
+      char inByte = Serial.read();
+      if (inByte == 'w') {
+        resume = true;
+      }
+    }
+  }
+  
 }
 
 void loop() {
   static boolean newDataReady = 0;
-  const int serialPrintInterval = 10; //increase value to slow down serial print activity
+  const int serialPrintInterval = 500; //increase value to slow down serial print activity
 
   // check for new data/start next conversion:
   if (LoadCell_1.update()) newDataReady = true;
@@ -239,4 +271,22 @@ void calibrate() {
   Serial.println("Resuming....");
   Serial.println("***");
   delay(3000);
+}
+
+int maintainWifi(){
+  //wifiConnected to check if the wifi has been connected before
+  if (WiFi.status() != WL_CONNECTED) wifiConnected = 0;
+  if (wifiMulti.run() == WL_CONNECTED) {
+    if(wifiConnected == 0) {
+      Serial.print("WiFi connected: ");
+      Serial.print(WiFi.SSID());
+      Serial.print(" ");
+      Serial.println(WiFi.localIP());
+      wifiConnected = 1;
+    }
+    return WL_CONNECTED;
+  } else {
+    wifiConnected = 0;
+    return WL_DISCONNECTED;
+  }
 }
