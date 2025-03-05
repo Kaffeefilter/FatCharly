@@ -26,7 +26,7 @@ const int calVal_eepromAdress_2 = 4; // eeprom adress for calibration value load
 unsigned long t = 0;
 
 void setup() {
-  Serial.begin(9600); delay(10);
+  Serial.begin(9600); delay(1000);
   Serial.println();
   Serial.println("Starting...");
 
@@ -71,7 +71,9 @@ void setup() {
   }
   
   Serial.println("Startup is complete");
+  Serial.print("\033[31m");
   Serial.println("send w to continue...");
+  Serial.print("\033[0m");
   boolean resume = false;
   while (resume == false)
   {
